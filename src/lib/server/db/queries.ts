@@ -2,7 +2,7 @@ import { genSaltSync, hashSync } from 'bcrypt-ts';
 import { and, asc, desc, eq, gt, gte, inArray } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { POSTGRES_URL } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 import { ResultAsync, fromPromise, ok, safeTry } from 'neverthrow';
 import {
 	user,
@@ -30,7 +30,7 @@ import { unwrapSingleQueryResult } from './utils';
 // https://authjs.dev/reference/adapter/drizzle
 
 // biome-ignore lint: Forbidden non-null assertion.
-const client = postgres(POSTGRES_URL);
+const client = postgres(env.POSTGRES_URL!);
 const db = drizzle(client);
 
 export function getAuthUser(email: string): ResultAsync<AuthUser, DbError> {

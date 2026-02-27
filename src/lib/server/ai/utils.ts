@@ -1,14 +1,24 @@
-import { generateText, type Message } from 'ai';
+import { generateText, type UIMessage } from 'ai';
 import { myProvider } from './models';
 import { AIInternalError, type AIError } from '$lib/errors/ai';
 import { fromPromise, ok, safeTry, type ResultAsync } from 'neverthrow';
 
+function getTextFromUIMessage(message: UIMessage): string {
+	return message.parts
+		.filter((part) => part.type === 'text')
+		.map((part) => part.text)
+		.join('\n')
+		.trim();
+}
+
 export function generateTitleFromUserMessage({
 	message
 }: {
-	message: Message;
+	message: UIMessage;
 }): ResultAsync<string, AIError> {
 	return safeTry(async function* () {
+		const prompt = getTextFromUIMessage(message) || JSON.stringify(message);
+
 		const result = yield* fromPromise(
 			generateText({
 				model: myProvider.languageModel('title-model'),
@@ -17,7 +27,7 @@ export function generateTitleFromUserMessage({
           - ensure it is not more than 80 characters long
           - the title should be a summary of the user's message
           - do not use quotes or colons`,
-				prompt: JSON.stringify(message)
+				prompt
 			}),
 			(e) => new AIInternalError({ cause: e })
 		);

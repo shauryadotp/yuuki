@@ -13,6 +13,8 @@
 	let { message, readonly, loading }: { message: UIMessage; readonly: boolean; loading: boolean } =
 		$props();
 
+	const fileParts = $derived(message.parts.filter((part) => part.type === 'file'));
+
 	let mode = $state<'view' | 'edit'>('view');
 </script>
 
@@ -41,9 +43,9 @@
 		{/if}
 
 		<div class="flex w-full flex-col gap-4">
-			{#if message.experimental_attachments && message.experimental_attachments.length > 0}
+			{#if fileParts.length > 0}
 				<div class="flex flex-row justify-end gap-2">
-					{#each message.experimental_attachments as attachment (attachment.url)}
+					{#each fileParts as attachment (`${message.id}-${attachment.url}`)}
 						<PreviewAttachment {attachment} />
 					{/each}
 				</div>
@@ -52,7 +54,7 @@
 			{#each message.parts as part, i (`${message.id}-${i}`)}
 				{@const { type } = part}
 				{#if type === 'reasoning'}
-					<MessageReasoning {loading} reasoning={part.reasoning} />
+					<MessageReasoning {loading} reasoning={part.text} />
 				{:else if type === 'text'}
 					{#if mode === 'view'}
 						<div class="flex flex-row items-start gap-2">

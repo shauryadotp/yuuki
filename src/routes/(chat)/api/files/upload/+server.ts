@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { z } from 'zod';
 import { put } from '@vercel/blob';
-import { BLOB_READ_WRITE_TOKEN } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 const FileSchema = z.object({
 	file: z
@@ -47,7 +47,7 @@ export async function POST({ request, locals: { user } }) {
 		try {
 			const data = await put(`${filename}`, fileBuffer, {
 				access: 'public',
-				token: BLOB_READ_WRITE_TOKEN
+				token: env.BLOB_READ_WRITE_TOKEN!
 			});
 
 			return Response.json(data);

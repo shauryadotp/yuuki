@@ -3,12 +3,11 @@ import { systemPrompt } from '$lib/server/ai/prompts.js';
 import { generateTitleFromUserMessage } from '$lib/server/ai/utils';
 import { deleteChatById, getChatById, saveChat, saveMessages } from '$lib/server/db/queries.js';
 import type { Chat } from '$lib/server/db/schema';
-import { getMostRecentUserMessage, getTrailingMessageId } from '$lib/utils/chat.js';
+import { getMostRecentUserMessage } from '$lib/utils/chat.js';
 import { allowAnonymousChats } from '$lib/utils/constants.js';
 import { error } from '@sveltejs/kit';
 import {
-	appendResponseMessages,
-	createDataStreamResponse,
+	convertToModelMessages,
 	smoothStream,
 	streamText,
 	type UIMessage
@@ -17,7 +16,12 @@ import { ok, safeTry } from 'neverthrow';
 
 export async function POST({ request, locals: { user }, cookies }) {
 	// TODO: zod?
-	const { id, messages }: { id: string; messages: UIMessage[] } = await request.json();
+	const {
+		id,
+		messages,
+		trigger
+	}: { id: string; messages: UIMessage[]; trigger?: 'submit-message' | 'regenerate-message' } =
+		await request.json();
 	const selectedChatModel = cookies.get('selected-model');
 
 	if (!user && !allowAnonymousChats) {
@@ -34,7 +38,7 @@ export async function POST({ request, locals: { user }, cookies }) {
 		error(400, 'No user message found');
 	}
 
-	if (user) {
+	if (user && trigger !== 'regenerate-message') {
 		await safeTry(async function* () {
 			let chat: Chat;
 			const chatResult = await getChatById({ id });
@@ -52,6 +56,7 @@ export async function POST({ request, locals: { user }, cookies }) {
 				error(403, 'Forbidden');
 			}
 
+			const attachments = userMessage.parts.filter((part) => part.type === 'file');
 			yield* saveMessages({
 				messages: [
 					{
@@ -59,7 +64,7 @@ export async function POST({ request, locals: { user }, cookies }) {
 						id: userMessage.id,
 						role: 'user',
 						parts: userMessage.parts,
-						attachments: userMessage.experimental_attachments ?? [],
+						attachments,
 						createdAt: new Date()
 					}
 				]
@@ -69,68 +74,42 @@ export async function POST({ request, locals: { user }, cookies }) {
 		}).orElse(() => error(500, 'An error occurred while processing your request'));
 	}
 
-	return createDataStreamResponse({
-		execute: (dataStream) => {
-			const result = streamText({
-				model: myProvider.languageModel(selectedChatModel),
-				system: systemPrompt({ selectedChatModel }),
-				messages,
-				maxSteps: 5,
-				experimental_activeTools: [],
-				// TODO
-				// selectedChatModel === 'chat-model-reasoning'
-				// 	? []
-				// 	: ['getWeather', 'createDocument', 'updateDocument', 'requestSuggestions'],
-				experimental_transform: smoothStream({ chunking: 'word' }),
-				experimental_generateMessageId: crypto.randomUUID.bind(crypto),
-				// TODO
-				// tools: {
-				// 	getWeather,
-				// 	createDocument: createDocument({ session, dataStream }),
-				// 	updateDocument: updateDocument({ session, dataStream }),
-				// 	requestSuggestions: requestSuggestions({
-				// 		session,
-				// 		dataStream
-				// 	})
-				// },
-				onFinish: async ({ response }) => {
-					if (!user) return;
-					const assistantId = getTrailingMessageId({
-						messages: response.messages.filter((message) => message.role === 'assistant')
-					});
+	const modelMessages = await convertToModelMessages(
+		messages.map(({ id: _id, ...rest }) => rest),
+		{ ignoreIncompleteToolCalls: true }
+	);
 
-					if (!assistantId) {
-						throw new Error('No assistant message found!');
+	const result = streamText({
+		model: myProvider.languageModel(selectedChatModel),
+		system: systemPrompt({ selectedChatModel }),
+		messages: modelMessages,
+		experimental_activeTools: [],
+		experimental_transform: smoothStream({ chunking: 'word' }),
+		experimental_telemetry: {
+			isEnabled: true,
+			functionId: 'stream-text'
+		}
+	});
+
+	return result.toUIMessageStreamResponse({
+		originalMessages: messages,
+		generateMessageId: crypto.randomUUID.bind(crypto),
+		sendReasoning: true,
+		onFinish: async ({ responseMessage }) => {
+			if (!user || trigger === 'regenerate-message') return;
+			const attachments = responseMessage.parts.filter((part) => part.type === 'file');
+
+			await saveMessages({
+				messages: [
+					{
+						id: responseMessage.id,
+						chatId: id,
+						role: responseMessage.role,
+						parts: responseMessage.parts,
+						attachments,
+						createdAt: new Date()
 					}
-
-					const [, assistantMessage] = appendResponseMessages({
-						messages: [userMessage],
-						responseMessages: response.messages
-					});
-
-					await saveMessages({
-						messages: [
-							{
-								id: assistantId,
-								chatId: id,
-								role: assistantMessage.role,
-								parts: assistantMessage.parts,
-								attachments: assistantMessage.experimental_attachments ?? [],
-								createdAt: new Date()
-							}
-						]
-					});
-				},
-				experimental_telemetry: {
-					isEnabled: true,
-					functionId: 'stream-text'
-				}
-			});
-
-			result.consumeStream();
-
-			result.mergeIntoDataStream(dataStream, {
-				sendReasoning: true
+				]
 			});
 		},
 		onError: (e) => {

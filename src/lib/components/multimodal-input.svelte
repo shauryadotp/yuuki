@@ -6,7 +6,7 @@
 	import { onMount } from 'svelte';
 	import { LocalStorage } from '$lib/hooks/local-storage.svelte';
 	import { innerWidth } from 'svelte/reactivity/window';
-	import type { Attachment } from 'ai';
+	import type { FileUIPart } from 'ai';
 	import { toast } from 'svelte-sonner';
 	import { Button } from './ui/button';
 	import PaperclipIcon from './icons/paperclip.svelte';
@@ -22,7 +22,7 @@
 		chatClient,
 		class: c
 	}: {
-		attachments: Attachment[];
+		attachments: FileUIPart[];
 		user: User | undefined;
 		chatClient: Chat;
 		class?: string;
@@ -34,6 +34,7 @@
 	let uploadQueue = $state<string[]>([]);
 	const storedInput = new LocalStorage('input', '');
 	const loading = $derived(chatClient.status === 'streaming' || chatClient.status === 'submitted');
+	let input = $state('');
 
 	const adjustHeight = () => {
 		if (textareaRef) {
@@ -49,21 +50,23 @@
 		}
 	};
 
-	function setInput(value: string) {
-		chatClient.input = value;
-		adjustHeight();
-	}
-
 	async function submitForm(event?: Event) {
 		if (user) {
 			replaceState(`/chat/${chatClient.id}`, {});
 		}
+		event?.preventDefault();
 
-		await chatClient.handleSubmit(event, {
-			experimental_attachments: attachments
-		});
+		if (attachments.length > 0 && input.trim().length === 0) {
+			await chatClient.sendMessage({ files: attachments });
+		} else {
+			await chatClient.sendMessage({
+				text: input,
+				files: attachments.length > 0 ? attachments : undefined
+			});
+		}
 
 		attachments = [];
+		input = '';
 		resetHeight();
 
 		if (innerWidth.current && innerWidth.current > 768) {
@@ -84,12 +87,12 @@
 			if (response.ok) {
 				const data = await response.json();
 				const { url, pathname, contentType } = data;
-
 				return {
+					type: 'file',
 					url,
-					name: pathname,
-					contentType: contentType
-				};
+					filename: pathname,
+					mediaType: contentType
+				} satisfies FileUIPart;
 			}
 			const { message } = await response.json();
 			toast.error(message);
@@ -122,13 +125,13 @@
 	}
 
 	onMount(() => {
-		chatClient.input = storedInput.value;
+		input = storedInput.value;
 		adjustHeight();
 		mounted = true;
 	});
 
 	$effect.pre(() => {
-		storedInput.value = chatClient.input;
+		storedInput.value = input;
 	});
 </script>
 
@@ -155,9 +158,10 @@
 			{#each uploadQueue as filename (filename)}
 				<PreviewAttachment
 					attachment={{
+						type: 'file',
 						url: '',
-						name: filename,
-						contentType: ''
+						filename,
+						mediaType: ''
 					}}
 					uploading
 				/>
@@ -168,13 +172,14 @@
 	<Textarea
 		bind:ref={textareaRef}
 		placeholder="Send a message..."
-		bind:value={() => chatClient.input, setInput}
+		bind:value={input}
 		class={cn(
 			'bg-muted max-h-[calc(75dvh)] min-h-[24px] resize-none overflow-hidden rounded-2xl pb-10 !text-base dark:border-zinc-700',
 			c
 		)}
 		rows={2}
 		autofocus
+		oninput={adjustHeight}
 		onkeydown={(event) => {
 			if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
 				event.preventDefault();
@@ -218,10 +223,9 @@
 {#snippet stopButton()}
 	<Button
 		class="h-fit rounded-full border p-1.5 dark:border-zinc-600"
-		onclick={(event) => {
+		onclick={async (event) => {
 			event.preventDefault();
-			stop();
-			chatClient.messages = chatClient.messages;
+			await chatClient.stop();
 		}}
 	>
 		<StopIcon size={14} />
@@ -235,7 +239,7 @@
 			event.preventDefault();
 			submitForm();
 		}}
-		disabled={chatClient.input.length === 0 || uploadQueue.length > 0}
+		disabled={(input.trim().length === 0 && attachments.length === 0) || uploadQueue.length > 0}
 	>
 		<ArrowUpIcon size={14} />
 	</Button>

@@ -1,10 +1,10 @@
 import { createXai } from '@ai-sdk/xai';
 import { createGroq } from '@ai-sdk/groq';
 import { customProvider, extractReasoningMiddleware, wrapLanguageModel } from 'ai';
-import { XAI_API_KEY, GROQ_API_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
-const xai = createXai({ apiKey: XAI_API_KEY });
-const groq = createGroq({ apiKey: GROQ_API_KEY });
+const xai = createXai({ apiKey: env.XAI_API_KEY! });
+const groq = createGroq({ apiKey: env.GROQ_API_KEY! });
 
 export const myProvider = customProvider({
 	languageModels: {
