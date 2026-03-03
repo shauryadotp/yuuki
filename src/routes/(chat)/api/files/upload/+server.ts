@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import { z } from 'zod';
 import { put } from '@vercel/blob';
 import { env } from '$env/dynamic/private';
+import { allowAnonymousChats } from '$lib/utils/constants';
 
 const FileSchema = z.object({
 	file: z
@@ -16,7 +17,7 @@ const FileSchema = z.object({
 });
 
 export async function POST({ request, locals: { user } }) {
-	if (!user) {
+	if (!user && !allowAnonymousChats) {
 		error(401, 'Unauthorized');
 	}
 

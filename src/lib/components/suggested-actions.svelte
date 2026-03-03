@@ -4,6 +4,8 @@
 	import { fly } from 'svelte/transition';
 	import { replaceState } from '$app/navigation';
 	import type { User } from '$lib/server/db/schema';
+	import { allowAnonymousChats } from '$lib/utils/constants';
+	import { toast } from 'svelte-sonner';
 
 	let { user, chatClient }: { user: User | undefined; chatClient: Chat } = $props();
 
@@ -40,6 +42,11 @@
 			<Button
 				variant="ghost"
 				onclick={async () => {
+					if (!user && !allowAnonymousChats) {
+						toast.error('Please sign in to send messages.');
+						return;
+					}
+
 					if (user) {
 						replaceState(`/chat/${chatClient.id}`, {});
 					}

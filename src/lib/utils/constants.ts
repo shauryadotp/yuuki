@@ -1,5 +1,3 @@
-import { env } from '$env/dynamic/public';
-
 export const BREAKPOINTS = {
 	sm: {
 		unit: 'px',
@@ -23,4 +21,4 @@ export const BREAKPOINTS = {
 	}
 } as const;
 
-export const allowAnonymousChats = env.PUBLIC_ALLOW_ANONYMOUS_CHATS === 'true';
+export const allowAnonymousChats = true;
