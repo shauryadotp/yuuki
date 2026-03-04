@@ -38,12 +38,12 @@ export const modelCards: ModelCard[] = [
 		provider_modelId: 'deepseek-ai/deepseek-v3.1-terminus',
 		provider: 'custom-nv',
 		prompt: ['@/conf/prompts/yuuki.md'],
-		latency: 'balanced'
-    reasoning: true,
-    file_comprehension: true,
-    tools: true,
-    vision: false,
-    ctx: 128000
+		latency: 'balanced',
+		reasoning: true,
+		file_comprehension: true,
+		tools: true,
+		vision: false,
+		ctx: 128000
 	}
 ];
 

@@ -240,7 +240,7 @@ type ModelCardModule = {
 	modelCards?: ModelCard[];
 };
 
-const confModelModules = import.meta.glob('/conf/models/*.ts', {
+const confModelModules = import.meta.glob('/conf/models/!(test|*.test).ts', {
 	eager: true
 }) as Record<string, ModelCardModule>;
 

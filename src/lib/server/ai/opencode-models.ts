@@ -1,4 +1,5 @@
 import { createOpencodeClient } from '@opencode-ai/sdk/v2';
+import { env } from '$env/dynamic/private';
 import type { ChatModel } from '$lib/ai/models';
 
 type ProviderListResponse = {
@@ -35,7 +36,9 @@ export async function getOpencodeChatModels(): Promise<ChatModel[]> {
 	}
 
 	try {
-		const client = createOpencodeClient();
+		const client = createOpencodeClient({
+			baseUrl: env.OPENCODE_API_BASE ?? 'http://127.0.0.1:4096'
+		});
 		const response = (await client.provider.list({})) as ProviderListResponse;
 		const payload = response.data;
 
