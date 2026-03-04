@@ -1,4 +1,4 @@
-export type ChatModelProvider = 'groq' | 'nim' | 'custom-oc' | 'mimo' | 'cerebras';
+export type ChatModelProvider = 'groq' | 'nim' | 'custom-oc' | 'mimo' | 'cerebras' | 'opencode';
 
 export interface ChatModel {
 	id: string;
@@ -9,7 +9,30 @@ export interface ChatModel {
 	reasoning?: boolean;
 }
 
-export const chatModels: ChatModel[] = [
+export interface ModelCard {
+	name: string;
+	id: string;
+	description: string;
+	base_modelId: string;
+	provider_modelId: string;
+	provider: ChatModelProvider | 'custom-nv';
+	prompt: string[];
+	latency: 'balanced';
+	reasoning?: boolean;
+	file_comprehension?: boolean;
+	tools?: boolean;
+	vision?: boolean;
+	ctx?: number;
+}
+
+const builtInChatModels: ChatModel[] = [
+	{
+		id: 'opencode:openai/gpt-5.2',
+		name: 'GPT-5.2',
+		description: 'OpenCode route for OpenAI GPT-5.2',
+		provider: 'opencode',
+		modelId: 'openai/gpt-5.2'
+	},
 	{
 		id: 'mimo-flash',
 		name: 'MiMo Flash',
@@ -211,4 +234,65 @@ export const chatModels: ChatModel[] = [
 	}
 ];
 
-export const DEFAULT_CHAT_MODEL = 'mimo-flash';
+type ModelCardModule = {
+	default?: ModelCard | ModelCard[];
+	modelCard?: ModelCard;
+	modelCards?: ModelCard[];
+};
+
+const confModelModules = import.meta.glob('/conf/models/*.ts', {
+	eager: true
+}) as Record<string, ModelCardModule>;
+
+function isModelCard(value: unknown): value is ModelCard {
+	if (typeof value !== 'object' || value === null) return false;
+	const candidate = value as Partial<ModelCard>;
+
+	return (
+		typeof candidate.name === 'string' &&
+		typeof candidate.id === 'string' &&
+		typeof candidate.description === 'string' &&
+		typeof candidate.provider_modelId === 'string' &&
+		typeof candidate.provider === 'string'
+	);
+}
+
+function normalizeModelCardExport(
+	modelCardExport: ModelCard | ModelCard[] | undefined
+): ModelCard[] {
+	if (!modelCardExport) return [];
+	const asArray = Array.isArray(modelCardExport) ? modelCardExport : [modelCardExport];
+	return asArray.filter(isModelCard);
+}
+
+function toChatModelProvider(provider: ModelCard['provider']): ChatModelProvider {
+	if (provider === 'custom-nv') return 'nim';
+	return provider;
+}
+
+function toChatModel(modelCard: ModelCard): ChatModel {
+	return {
+		id: modelCard.id,
+		name: modelCard.name,
+		description: modelCard.description,
+		provider: toChatModelProvider(modelCard.provider),
+		modelId: modelCard.provider_modelId,
+		reasoning: modelCard.reasoning
+	};
+}
+
+function dedupeById<T extends { id: string }>(items: T[]) {
+	return Array.from(new Map(items.map((item) => [item.id, item])).values());
+}
+
+const configuredChatModels = Object.values(confModelModules)
+	.flatMap((mod) => [
+		...normalizeModelCardExport(mod.default),
+		...normalizeModelCardExport(mod.modelCard),
+		...normalizeModelCardExport(mod.modelCards)
+	])
+	.map(toChatModel);
+
+export const chatModels: ChatModel[] = dedupeById([...builtInChatModels, ...configuredChatModels]);
+
+export const DEFAULT_CHAT_MODEL = 'opencode:openai/gpt-5.2';

@@ -79,6 +79,9 @@
 	"dependencies": {
 		"@ai-sdk/cerebras": "^2.0.34",
 		"@ai-sdk/google": "^3.0.33",
-		"@ai-sdk/openai-compatible": "^2.0.30"
+		"@ai-sdk/openai-compatible": "^2.0.30",
+		"ai-sdk-provider-opencode-sdk": "^2.1.2",
+		"remark-language-server": "^3.0.0",
+		"svelte-language-server": "^0.17.29"
 	}
 }

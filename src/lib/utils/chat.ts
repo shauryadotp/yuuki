@@ -1,6 +1,19 @@
 import type { Message as DBMessage, Document } from '$lib/server/db/schema';
 import type { FileUIPart, UIMessage } from 'ai';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null;
+}
+
+function toFilePart(url: string, mediaType: string, filename?: string): FileUIPart {
+	return {
+		type: 'file',
+		url,
+		mediaType,
+		...(filename ? { filename } : {})
+	};
+}
+
 export function convertToUIMessages(messages: Array<DBMessage>): Array<UIMessage> {
 	return messages.map((message) => {
 		const parts = (message.parts as UIMessage['parts']) ?? [];
@@ -8,25 +21,28 @@ export function convertToUIMessages(messages: Array<DBMessage>): Array<UIMessage
 
 		const filePartsFromAttachments: FileUIPart[] = attachments
 			.map((attachment) => {
-				if (!attachment || typeof attachment !== 'object') return null;
+				if (!isRecord(attachment)) return null;
 
 				// v6 FileUIPart persisted directly.
-				if ('type' in attachment && (attachment as any).type === 'file') {
-					return attachment as FileUIPart;
+				if (
+					attachment.type === 'file' &&
+					typeof attachment.url === 'string' &&
+					typeof attachment.mediaType === 'string'
+				) {
+					return toFilePart(
+						attachment.url,
+						attachment.mediaType,
+						typeof attachment.filename === 'string' ? attachment.filename : undefined
+					);
 				}
 
 				// Legacy attachment shape: { url, name, contentType }
 				if ('url' in attachment) {
-					const url = (attachment as any).url;
-					const filename = (attachment as any).name;
-					const mediaType = (attachment as any).contentType;
+					const { url } = attachment;
+					const filename = attachment.name;
+					const mediaType = attachment.contentType;
 					if (typeof url !== 'string' || typeof mediaType !== 'string') return null;
-					return {
-						type: 'file',
-						url,
-						mediaType,
-						filename: typeof filename === 'string' ? filename : undefined
-					};
+					return toFilePart(url, mediaType, typeof filename === 'string' ? filename : undefined);
 				}
 
 				return null;

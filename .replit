@@ -1,0 +1,13 @@
+modules = ["nodejs-20"]
+[nix]
+channel = "stable-24_11"
+
+[env]
+PATH = "/home/runner/workspace/.cache/.bun/bin:$PATH"
+
+[agent]
+expertMode = true
+
+[[ports]]
+localPort = 5173
+externalPort = 80

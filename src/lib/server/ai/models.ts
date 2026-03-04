@@ -1,6 +1,7 @@
 import { createXai } from '@ai-sdk/xai';
 import { createGroq } from '@ai-sdk/groq';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { createOpencode } from 'ai-sdk-provider-opencode-sdk';
 import { customProvider, extractReasoningMiddleware, wrapLanguageModel } from 'ai';
 import { env } from '$env/dynamic/private';
 import { chatModels, DEFAULT_CHAT_MODEL, type ChatModelProvider } from '$lib/ai/models';
@@ -38,12 +39,15 @@ const mimo = createOpenAICompatible({
 	baseURL: `${GTW}/custom-mimo/v1`
 });
 
+const opencode = createOpencode();
+
 const providers: Record<ChatModelProvider, (modelId: string) => ReturnType<typeof groq>> = {
 	groq,
 	nim,
 	'custom-oc': oc,
 	mimo,
-	cerebras
+	cerebras,
+	opencode
 };
 
 const languageModels = Object.fromEntries(
@@ -73,3 +77,11 @@ export const myProvider = customProvider({
 		'small-model': xai.image('grok-2-image')
 	}
 });
+
+export function resolveLanguageModel(selectedChatModel: string) {
+	if (selectedChatModel.startsWith('opencode:')) {
+		return opencode(selectedChatModel.slice('opencode:'.length));
+	}
+
+	return myProvider.languageModel(selectedChatModel);
+}

@@ -1,4 +1,4 @@
-import { myProvider } from '$lib/server/ai/models';
+import { resolveLanguageModel } from '$lib/server/ai/models';
 import { systemPrompt } from '$lib/server/ai/prompts.js';
 import { generateTitleFromUserMessage } from '$lib/server/ai/utils';
 import { deleteChatById, getChatById, saveChat, saveMessages } from '$lib/server/db/queries.js';
@@ -6,12 +6,7 @@ import type { Chat } from '$lib/server/db/schema';
 import { getMostRecentUserMessage } from '$lib/utils/chat.js';
 import { allowAnonymousChats } from '$lib/utils/constants.js';
 import { error } from '@sveltejs/kit';
-import {
-	convertToModelMessages,
-	smoothStream,
-	streamText,
-	type UIMessage
-} from 'ai';
+import { convertToModelMessages, smoothStream, streamText, type UIMessage } from 'ai';
 import { ok, safeTry } from 'neverthrow';
 
 export async function POST({ request, locals: { user }, cookies }) {
@@ -80,7 +75,7 @@ export async function POST({ request, locals: { user }, cookies }) {
 	);
 
 	const result = streamText({
-		model: myProvider.languageModel(selectedChatModel),
+		model: resolveLanguageModel(selectedChatModel),
 		system: systemPrompt({ selectedChatModel }),
 		messages: modelMessages,
 		experimental_activeTools: [],

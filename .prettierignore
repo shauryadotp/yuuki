@@ -2,3 +2,8 @@
 package-lock.json
 pnpm-lock.yaml
 yarn.lock
+
+# Local tooling caches
+.cache
+.local
+.config

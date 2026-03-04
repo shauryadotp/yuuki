@@ -9,9 +9,10 @@
 	import CheckCircleFillIcon from './icons/check-circle-fill.svelte';
 	import ChevronDownIcon from './icons/chevron-down.svelte';
 	import { cn } from '$lib/utils/shadcn';
-	import { chatModels } from '$lib/ai/models';
+	import type { ChatModel } from '$lib/ai/models';
 	import type { ClassValue } from 'svelte/elements';
 	import { SelectedModel } from '$lib/hooks/selected-model.svelte';
+	import { page } from '$app/state';
 
 	let {
 		class: c
@@ -21,8 +22,9 @@
 
 	let open = $state(false);
 	const selectedChatModel = SelectedModel.fromContext();
+	const availableChatModels = $derived((page.data.availableChatModels as ChatModel[]) ?? []);
 	const selectedChatModelDetails = $derived(
-		chatModels.find((model) => model.id === selectedChatModel.value)
+		availableChatModels.find((model) => model.id === selectedChatModel.value)
 	);
 </script>
 
@@ -42,8 +44,8 @@
 			</Button>
 		{/snippet}
 	</DropdownMenuTrigger>
-	<DropdownMenuContent align="start" class="min-w-[300px]">
-		{#each chatModels as chatModel (chatModel.id)}
+	<DropdownMenuContent align="start" class="max-h-80 min-w-[300px] overflow-y-scroll">
+		{#each availableChatModels as chatModel (chatModel.id)}
 			<DropdownMenuItem
 				onSelect={() => {
 					open = false;

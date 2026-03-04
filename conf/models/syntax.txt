@@ -1,0 +1,25 @@
+structure -> 
+key = data_type | description 
+
+name = string |  model display name
+
+id = string | model id to be exported as
+
+description = string | model description
+
+base_modelId = string | the "id" of another model to be used in this model, modelId and provider are not required if this field is present
+
+modelId = string | provider model id or path
+provider = string | provider
+
+prompt = strings/files | system prompt files
+
+reasoning = boolean | if model has reasoning capabilities
+reasoning_effort = ' low | medium | high | none | default ' | default doesn't send reasoning_effort query to provider
+
+vision = boolean | if model can see or visualize things
+audio = boolean | if model can process audio
+video = boolean | if model can process video
+file_comprehension = boolean | if model can parse files
+tool = boolean | if model supports native tool calling
+ctx = number | context window max
